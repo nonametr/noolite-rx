@@ -38,7 +38,7 @@ static volatile bool running = true;
  * @param str string to convert
  * @return uint
  */
-uint strToInt(const char *str)
+uint str_to_int(const char *str)
 {
     uint result;
     sscanf(str, "%u", &result);
@@ -77,7 +77,7 @@ void write_pid(string app_name)
  * @brief terminateSignalHandler - OS signal handler, unlocks mutex
  * @param sigNum - signal id
  */
-static void terminateSignalHandler(int sigNum)
+static void terminate_signal_handler(int sigNum)
 {
     traceNotice("Received SIGNAL %d", sigNum);
 
@@ -87,10 +87,10 @@ static void terminateSignalHandler(int sigNum)
 /**
  * @brief setupSignals - prepare to handle OS signals
  */
-void setupSignals()
+void setup_signals()
 {
-    signal(SIGUSR1, terminateSignalHandler);
-    signal(SIGTERM, terminateSignalHandler);
+    signal(SIGUSR1, terminate_signal_handler);
+    signal(SIGTERM, terminate_signal_handler);
 
     signal(SIGCHLD, SIG_DFL);
     signal(SIGTSTP, SIG_IGN);
@@ -152,7 +152,7 @@ void daemonize()
     }
 
     /* Step 6: Setup signals */
-    setupSignals();
+    setup_signals();
 
     /* Step 7: Write new PID to file */
     write_pid(app_name);
@@ -225,7 +225,7 @@ void parse_args( int argc, char **argv )
         case 'b':
         case OPT_BIND:
         {
-            int ch = strToInt(argv[optind-1]);
+            int ch = str_to_int(argv[optind-1]);
             RX2164 rx;
 
             ASSERT_WITH_CODE(rx.open() == RX2164_STATE::OPENED, "Failed to open RX2164", return);
@@ -237,7 +237,7 @@ void parse_args( int argc, char **argv )
             break;
         case OPT_UNBIND:
         {
-            int ch = strToInt(argv[optind-1]);
+            int ch = str_to_int(argv[optind-1]);
             RX2164 rx;
 
             ASSERT_WITH_CODE(rx.open() == RX2164_STATE::OPENED, "Failed to open RX2164", return);
