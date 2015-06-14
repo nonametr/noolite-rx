@@ -9,5 +9,5 @@ include_directories(${LIBUSB_1_INCLUDE_DIRS})
 add_definitions(-std=c++0x)
 
 aux_source_directory(. SRC_LIST)
-add_executable(${PROJECT_NAME} ${SRC_LIST} defs.h defs_to_str.h loger.h)
+add_executable(${PROJECT_NAME} ${SRC_LIST} defs.h defs_to_str.h loger.h common.h)
 target_link_libraries(${PROJECT_NAME} ${LIBUSB_1_LIBRARIES})
