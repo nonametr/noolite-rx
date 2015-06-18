@@ -1,7 +1,7 @@
 # noolite-rx
 Noolite RX2164 receiver C++ binding
 
-May purpose of this project is to add support of noolite RX2164 to linux(MacOS, Windows etc. should also work)
+Main purpose of this project is to add support of noolite RX2164 to linux(MacOS, Windows etc. should also work)
 
 About NooLite: http://www.noo.com.by/
 
