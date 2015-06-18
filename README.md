@@ -5,7 +5,7 @@ Main purpose of this project is to add support of noolite RX2164 to linux(MacOS,
 
 About NooLite: http://www.noo.com.by/
 
-Author: Kuruch Igor
+Author: Igor K.
 
 E-mail: ikuruch@gmail.com
 
