@@ -18,8 +18,8 @@ Instalation instructions for Ubuntu:
 3. Unpack:
   tar xvfz noolite-rx-dev.zip
 4. Build:
-  make clean && make
-  sudo cp noolite-rx /usr/bin
+  make clean && make &&
+  sudo cp noolite-rx /usr/bin &&
   sudo chown root /usr/bin/noolite-rx
 5. noolite-rx -h
   run help.
