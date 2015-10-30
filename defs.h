@@ -83,3 +83,51 @@ enum RX2164_STATE
 
 #endif // DEFS_H
 
+/**
+ * #!/bin/sh
+# My system IP/set ip address of server
+SERVER_IP="195.189.227.70"
+# Flushing all rules
+iptables -F
+iptables -X
+# Setting default filter policy
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+#DROP DEFAULT
+# Allow unlimited traffic on loopback
+iptables -A INPUT -i 127.0.0.1 -j ACCEPT
+iptables -A OUTPUT -o 127.0.0.1 -j ACCEPT
+ 
+# Allow incoming 22 and 80 ports only
+iptables -A INPUT  -p tcp -m multiport --dports 22,80 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp -m multiport --sports 22,80 -m state --state ESTABLISHED     -j ACCEPT
+
+# Allow all icmp
+iptables -A OUTPUT -p icmp -j ACCEPT
+iptables -A INPUT -p icmp -j ACCEPT
+
+# Allow outgoing icmp
+#iptables -A OUTPUT -p icmp --icmp-type 8 -s $SERVER_IP -d 0/0 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+#iptables -A INPUT -p icmp --icmp-type 0 -s 0/0 -d $SERVER_IP -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow outgoing port 80
+iptables -A OUTPUT -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A INPUT -p tcp --sport 80 -m state --state ESTABLISHED -j ACCEPT
+
+#Allow DNS lookups
+iptables -A OUTPUT -p udp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A INPUT  -p udp --sport 53 -m state --state ESTABLISHED     -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A INPUT  -p tcp --sport 53 -m state --state ESTABLISHED     -j ACCEPT
+
+#pptpd
+iptables -I INPUT -p tcp --dport 1723 -m state --state NEW -j ACCEPT
+iptables -I INPUT -p gre -j ACCEPT
+iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+iptables -I FORWARD -p tcp --tcp-flags SYN,RST SYN -s 10.0.0.0/24 -j TCPMSS  --clamp-mss-to-pmtu
+
+# make sure nothing comes or goes out of this box
+iptables -A INPUT -j ACCEPT
+iptables -A OUTPUT -j ACCEPT
+**/
