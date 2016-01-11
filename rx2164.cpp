@@ -26,15 +26,16 @@
 #include <stdlib.h>
 #include <libusb-1.0/libusb.h>
 
-RX2164::RX2164(int debug_lvl)
-{
-    ASSERT_WITH_CODE(debug_lvl, return);
-    libusb_set_debug(NULL, debug_lvl);
-}
-
 RX2164::~RX2164()
 {
     close();
+}
+
+void RX2164::init(std::function<void(int, int, int, int)> &callback, int debug_lvl)
+{
+    _callback_func = callback;
+    ASSERT_WITH_CODE(debug_lvl, return);
+    libusb_set_debug(NULL, debug_lvl);
 }
 
 RX2164_STATE RX2164::close()
@@ -55,6 +56,38 @@ RX2164_STATE RX2164::close()
     }
 
     return _state;
+}
+
+bool RX2164::waitForEvent(RX2164_ACTION_TYPE action_type, uint ms_timeout)
+{
+    _wait_for_event = true;
+
+    while(_wait_for_event && _last_action != action_type && ms_timeout > RX2163_POOLING_PERIOD)
+    {
+        usleep(RX2163_POOLING_PERIOD);
+        ms_timeout -= RX2163_POOLING_PERIOD;
+    }
+
+    return true;
+}
+
+bool RX2164::stopWaitForEvent()
+{
+    _wait_for_event = false;
+
+    return true;
+}
+
+bool RX2164::stopBind()
+{
+    ASSERT_WITH_CODE(_state == OPENED || _state == LOOPING, "RX2164 not ready! Open new device!", return false);
+
+    unsigned char buf[8] = {'\0'};
+    buf[0] = 2;
+
+    libusb_control_transfer(_handle, LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT, 0x9, 0x300, 0, buf, 8, 100);
+
+    return true;
 }
 
 bool RX2164::bindChannel(uint channel)
@@ -111,10 +144,19 @@ RX2164_STATE RX2164::start()
 {
     ASSERT_WITH_CODE(_state == OPENED, "RX2164 not ready! Open new device!", return FAILED);
 
+    _state = PRE_LOOP;
     std::thread thread(&RX2164::_run, this);
     thread.detach();
 
-    return _state = LOOPING;
+    while(_state == PRE_LOOP)
+        usleep(RX2163_POOLING_PERIOD);
+
+    return _state;
+}
+
+RX2164_STATE RX2164::state()
+{
+    return _state;
 }
 
 RX2164_STATE RX2164::open(uint _vid, uint _pid)
@@ -149,7 +191,7 @@ RX2164_STATE RX2164::open(uint _vid, uint _pid)
     return _state = OPENED;
 }
 
-void RX2164::_processCommand(int new_togl, unsigned char *input)
+void RX2164::_handleEvent(int new_togl, unsigned char *input)
 {
     int channel = input[1];
     int action = input[2];
@@ -157,11 +199,11 @@ void RX2164::_processCommand(int new_togl, unsigned char *input)
 
     traceNotice("RX2164 received command");
     traceNotice("TOGL: %u ", new_togl);
-    traceNotice("Action: %s[#u]", _actionToStr(action).c_str(), action);
+    traceNotice("Action: %s[%u]", _actionToStr(action).c_str(), action);
     traceNotice("Channel: %u", channel);
     traceNotice("Data Size: %u", _formatToDataSize(data_format));
 
-    string external_command = "./action.sh rx2164 " + std::to_string(new_togl) + " " + std::to_string(action) + " " + std::to_string(channel) + " " + std::to_string(data_format);
+    //string external_command = "./action.sh rx2164 " + std::to_string(new_togl) + " " + std::to_string(action) + " " + std::to_string(channel) + " " + std::to_string(data_format);
     switch (action)
     {
         case SET_LEVEL:
@@ -173,7 +215,7 @@ void RX2164::_processCommand(int new_togl, unsigned char *input)
                 SensorType sensor_type = (SensorType)(input[4] & 0xff);                
                 traceNotice("SensorType: %u", sensorTypeToStr(sensor_type).c_str());
 
-                external_command += " " + std::to_string(sensor_type);
+                //external_command += " " + std::to_string(sensor_type);
             }
             break;
         case TEMPERATURE:
@@ -197,36 +239,50 @@ void RX2164::_processCommand(int new_togl, unsigned char *input)
             traceNotice("Battery: %s\n", batteryToStr(batery_state).c_str());
             traceNotice("SensorType: %f\n", sensorTypeToStr(sensor_type).c_str());
 
-            external_command += " " + std::to_string(temperature) + " " + std::to_string(humidity) + " " + std::to_string(analog_sensor) + " " + std::to_string(batery_state) + " " + std::to_string(sensor_type);
+            //external_command += " " + std::to_string(temperature) + " " + std::to_string(humidity) + " " + std::to_string(analog_sensor) + " " + std::to_string(batery_state) + " " + std::to_string(sensor_type);
         }
             break;
         default:
             break;
     }
 
-    system(external_command.c_str());
-    traceNotice("-----------------\r\n");
+
+    _callback_func(new_togl, action, channel, data_format);
+    _last_action = (RX2164_ACTION_TYPE)action;
+    //system(external_command.c_str());
+    //traceNotice("-----------------\r\n");
+}
+
+void RX2164::_processEvents()
+{
+    static int new_togl;
+    static int prev_togl = -10000;
+
+    unsigned char buf[8];
+    libusb_control_transfer(_handle, LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE|LIBUSB_ENDPOINT_IN, 0x9, 0x300, 0, buf, 8, 1000);
+
+    new_togl = buf[0] & 63;
+
+    if (new_togl != prev_togl)//got new command
+    {
+        _handleEvent(new_togl, buf);
+    }
+
+    prev_togl = new_togl;
 }
 
 void RX2164::_run()
 {
-    int new_togl;
-    int prev_togl = -10000;
-
-    while(_state == LOOPING)
+    if(_state == PRE_LOOP)
     {
-        unsigned char buf[8];
-        libusb_control_transfer(_handle, LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE|LIBUSB_ENDPOINT_IN, 0x9, 0x300, 0, buf, 8, 1000);
+        _processEvents();
+        _state = LOOPING;
 
-        new_togl = buf[0] & 63;
-
-        if (new_togl != prev_togl)//got new command
+        do
         {
-            _processCommand(new_togl, buf);
-        }
-
-        prev_togl = new_togl;
-        usleep(RX2163_POOLING_PERIOD);//1000000 - 1s
+            _processEvents();
+            usleep(RX2163_POOLING_PERIOD);//1000000 - 1s
+        } while(_state == LOOPING);
     }
     _state = STOPED;
 }

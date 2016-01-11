@@ -32,22 +32,31 @@ struct libusb_device_handle;
 class RX2164
 {    
 public:
-    RX2164(int debug_lvl = RX2164_DEFAULT_DEBUG_LVL);
+    RX2164() = default;
     virtual ~RX2164();
 
+    void init(std::function<void(int, int, int, int)> &callback, int debug_lvl = RX2164_DEFAULT_DEBUG_LVL);
     RX2164_STATE open(uint _vid = RX2163_DEV_VID, uint _pid = RX2163_DEV_PID);
     RX2164_STATE start();
     RX2164_STATE close();
+    RX2164_STATE state();
 
+    bool waitForEvent(RX2164_ACTION_TYPE action_type, uint ms_timeout = -1);
+    bool stopWaitForEvent();
     bool bindChannel(uint channel);
     bool unbindChannel(uint channel);
     bool unbindAll();
+    bool stopBind();
 
 private:
     void _run();
+    void _processEvents();
     RX2164_STATE _fail();
-    void _processCommand(int new_togl, unsigned char *input);
+    void _handleEvent(int new_togl, unsigned char *input);
 
+    std::function<void(int, int, int, int)> _callback_func;
+    volatile bool _wait_for_event = false;
+    volatile RX2164_ACTION_TYPE _last_action = TURN_OFF;
     volatile RX2164_STATE _state = CLOSED;
     libusb_device_handle *_handle = nullptr;
 };

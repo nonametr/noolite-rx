@@ -45,7 +45,7 @@ static const map<uint, string> _action_to_str =
     {SWITCH_MODE, "SWITCH_MODE"},
     {SWITCH_SPEED_MODE, "SWITCH_SPEED_MODE"},
     {BATTERY_LOW, "BATTERY_LOW"},
-    {TEMPERATURE, "TEMPERATURE"},
+    {TEMPERATURE, "TEMPERATURE"}
 };
 
 static const map<SensorType, string> _sensor_to_str =
@@ -95,7 +95,7 @@ static string batteryToStr(BatteryState battery_state)
 static string sensorTypeToStr(SensorType sensor_type)
 {
     auto it_match = _sensor_to_str.find(sensor_type);
-    ASSERT_WITH_CODE(it_match != _sensor_to_str.end(), "Error! Unknown battery state!", return 0);
+    ASSERT_WITH_CODE(it_match != _sensor_to_str.end(), "Error! Unknown battery state!", return "");
 
     return it_match->second;
 }
