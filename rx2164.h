@@ -29,13 +29,24 @@
 using namespace std;
 struct libusb_device_handle;
 
+typedef int channelId;
+typedef int actionId;
+
+struct RxActionData
+{
+    string script;
+    bool fw;
+    bool fw_ext;
+};
+
 class RX2164
 {    
 public:
-    RX2164() = default;
+    RX2164();
     virtual ~RX2164();
 
-    void init(std::function<void(int, int, int, int)> &callback, int debug_lvl = RX2164_DEFAULT_DEBUG_LVL);
+    void init(map<channelId, map<actionId, RxActionData>> v_channel_action,
+              std::function<void(int, int, int, int)> &callback, int debug_lvl = RX2164_DEFAULT_DEBUG_LVL);
     RX2164_STATE open(uint _vid = RX2163_DEV_VID, uint _pid = RX2163_DEV_PID);
     RX2164_STATE start();
     RX2164_STATE close();
@@ -43,8 +54,8 @@ public:
 
     bool waitForEvent(RX2164_ACTION_TYPE action_type, uint ms_timeout = -1);
     bool stopWaitForEvent();
-    bool bindChannel(uint channel);
-    bool unbindChannel(uint channel);
+    bool bindChannel(const int channel);
+    bool unbindChannel(const int channel);
     bool unbindAll();
     bool stopBind();
 
@@ -59,6 +70,8 @@ private:
     volatile RX2164_ACTION_TYPE _last_action = TURN_OFF;
     volatile RX2164_STATE _state = CLOSED;
     libusb_device_handle *_handle = nullptr;
+
+    map<channelId, map<actionId, RxActionData>> _channel_actions;
 };
 
 #endif // RX2164_H

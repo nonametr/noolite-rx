@@ -23,6 +23,7 @@
 #include <string>
 
 #include "common.h"
+#include "defs.h"
 
 using namespace std;
 

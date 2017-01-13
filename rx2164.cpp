@@ -26,13 +26,24 @@
 #include <stdlib.h>
 #include <libusb-1.0/libusb.h>
 
+#include <map>
+
+RX2164::RX2164()
+{
+    if(libusb_init(nullptr))
+    {
+        perror("Can't init. libusb");
+    }
+}
+
 RX2164::~RX2164()
 {
     close();
 }
 
-void RX2164::init(std::function<void(int, int, int, int)> &callback, int debug_lvl)
+void RX2164::init(map<channelId, map<actionId, RxActionData>> v_channel_action, std::function<void(int, int, int, int)> &callback, int debug_lvl)
 {
+    _channel_actions = v_channel_action;
     _callback_func = callback;
     ASSERT_WITH_CODE(debug_lvl, return);
     libusb_set_debug(NULL, debug_lvl);
@@ -90,7 +101,7 @@ bool RX2164::stopBind()
     return true;
 }
 
-bool RX2164::bindChannel(uint channel)
+bool RX2164::bindChannel(const int channel)
 {
     ASSERT_WITH_CODE(_state == OPENED || _state == LOOPING, "RX2164 not ready! Open new device!", return false);
 
@@ -109,7 +120,7 @@ bool RX2164::bindChannel(uint channel)
     return true;
 }
 
-bool RX2164::unbindChannel(uint channel)
+bool RX2164::unbindChannel(const int channel)
 {
     ASSERT_WITH_CODE(_state == OPENED || _state == LOOPING, "RX2164 not ready! Open new device!", return false);
 
@@ -203,7 +214,6 @@ void RX2164::_handleEvent(int new_togl, unsigned char *input)
     traceNotice("Channel: %u", channel);
     traceNotice("Data Size: %u", _formatToDataSize(data_format));
 
-    //string external_command = "./action.sh rx2164 " + std::to_string(new_togl) + " " + std::to_string(action) + " " + std::to_string(channel) + " " + std::to_string(data_format);
     switch (action)
     {
         case SET_LEVEL:
@@ -214,8 +224,6 @@ void RX2164::_handleEvent(int new_togl, unsigned char *input)
             {
                 SensorType sensor_type = (SensorType)(input[4] & 0xff);                
                 traceNotice("SensorType: %u", sensorTypeToStr(sensor_type).c_str());
-
-                //external_command += " " + std::to_string(sensor_type);
             }
             break;
         case TEMPERATURE:
@@ -238,8 +246,6 @@ void RX2164::_handleEvent(int new_togl, unsigned char *input)
             traceNotice("Analog sensor: %f\n", analog_sensor);
             traceNotice("Battery: %s\n", batteryToStr(batery_state).c_str());
             traceNotice("SensorType: %f\n", sensorTypeToStr(sensor_type).c_str());
-
-            //external_command += " " + std::to_string(temperature) + " " + std::to_string(humidity) + " " + std::to_string(analog_sensor) + " " + std::to_string(batery_state) + " " + std::to_string(sensor_type);
         }
             break;
         default:
@@ -249,8 +255,28 @@ void RX2164::_handleEvent(int new_togl, unsigned char *input)
 
     _callback_func(new_togl, action, channel, data_format);
     _last_action = (RX2164_ACTION_TYPE)action;
-    //system(external_command.c_str());
-    //traceNotice("-----------------\r\n");
+
+    auto it_channel = _channel_actions.find(channel);
+    if(it_channel != _channel_actions.end())
+    {
+        auto it_action = it_channel->second.find(action);
+        if(it_action != it_channel->second.end())
+        {
+            string command = it_action->second.script + " -action " + std::to_string(action) +
+                    " -channel " + std::to_string(channel);
+
+            if(it_action->second.fw)
+            {
+                command += " -togl " + std::to_string(new_togl) + " -data_format " + std::to_string(data_format);
+            }
+            if(it_action->second.fw_ext)
+            {
+                command += " -arg_1 " + std::to_string(input[4]) + " -arg_2 " + std::to_string(input[5]) + " -arg_3 " + std::to_string(input[6]) + " -arg_4 " + std::to_string(input[7]);
+            }
+
+            system(command.c_str());
+        }
+    }
 }
 
 void RX2164::_processEvents()

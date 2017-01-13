@@ -1,27 +1,7 @@
-project(noolite-rx)
-cmake_minimum_required(VERSION 2.8.11)
-site_name(HOSTNAME)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake_modules) #include additional cmake modules(for finding MySQL, OpenCL libraries etc.)
+cmake_minimum_required(VERSION 2.8)
 
-#-DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc
-#-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+project(noolite-trx)
+add_executable(${PROJECT_NAME} "main.cpp" "rx2164.cpp" "tx1132.cpp" "common.h" "defs.h" "defs_to_str.h" "loger.h" "tcp_server.cpp" "tcp_server.h")
 
-include_directories(./)
-
-set(INC_LIST ${INC_LIST}
-./common.h
-./defs.h
-./defs_to_str.h
-./log.h
-)
-
-add_library(${PROJECT_NAME} ${CMAKE_LIBRARY_TYPE} ./rx2164.cpp)
-
-find_package(USB REQUIRED)
-find_package(Qt5Core REQUIRED)
-find_package(Threads REQUIRED)
-
-target_link_libraries (${PROJECT_NAME} pthread ${LIBUSB_1_LIBRARIES})
-add_definitions(-Wall -Werror -std=c++0x)
-
-qt5_use_modules(${PROJECT_NAME} Core)
+add_definitions(-std=gnu++0x)
+target_link_libraries(${PROJECT_NAME} usb-1.0 pthread)
